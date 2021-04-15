@@ -1,0 +1,10 @@
+.idea/
+.git/
+.vscode/
+.DS_Store/
+__pycache__/
+cache/
+mod/logs/
+pkg/
+trash/
+*.pyc
