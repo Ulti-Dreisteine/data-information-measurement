@@ -11,6 +11,12 @@ Created on 2020/1/21 下午3:01
 @Describe: 默认设置
 """
 
+__all__ = [
+	'PROJ_DIR', 'PROJ_CMAP',
+    'proj_plt',
+	'EPS',
+]
+
 import sys
 import os
 
@@ -28,6 +34,8 @@ MODEL_CONFIG = config_loader.model_config
 TEST_PARAMS = config_loader.test_params
 
 # ---- 定义环境变量 ---------------------------------------------------------------------------------
+
+EPS = 1e-6
 
 # ---- 定义模型参数 ---------------------------------------------------------------------------------
 
