@@ -29,9 +29,11 @@
 ##### 1. 数据集生成
 
 数据集按照以下规则生成[^1]：
+
 <div align=center>
 <img alt="README-59c6cb1b.png" src="assets/数据集说明.png" width="600px" height="" >
 </div>
+
 代码位于core.dataset.data_generator中。
 
 ##### 2. 基于分箱的互信息方法
@@ -52,11 +54,13 @@
 
 各方法Novelty测试结果如下
 **MIC测试结果**：
+
 <div align=center>
 <img alt="novelty_mic.png" src="assets/novelty_mic.png" width="800px" height="" >
 </div>
 
 **KL-KNN测试结果**：
+
 <div align=center>
 <img alt="novelty_kl_knn.png" src="assets/novelty_kl_knn.png" width="800px" height="" >
 </div>
