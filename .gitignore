@@ -8,3 +8,5 @@ mod/logs/
 pkg/
 trash/
 *.pyc
+
+img/partitions.

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2021/05/12 16:45:21
+Created on 2021/05/13 14:21:04
 
 @File -> marginal_equiquantization.py
 
@@ -8,13 +8,14 @@ Created on 2021/05/12 16:45:21
 
 @Email: dreisteine262@163.com
 
-@Describe: 数据边际等概率离散化
+@Describe: 边际等概率离散化
 """
 
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-from typing import Tuple, List
+from typing import List, Tuple
 import numpy as np
+import copy
 import sys
 import os
 
@@ -23,50 +24,41 @@ BASE_DIR = os.path.abspath(os.path.join(
 sys.path.append(BASE_DIR)
 
 
-# ---- 测试 -----------------------------------------------------------------------------------------
+# ---- 离散化 ---------------------------------------------------------------------------------------
 
-def load_data(func: str) -> Tuple[np.ndarray, np.ndarray]:
-    """载入数据
-    """
-    from core.dataset.data_generator import DataGenerator
-
-    N = 1001
-    data_gener = DataGenerator(N=N)
-    x, y, _, _ = data_gener.gen_data(func, normalize=True)
-
-    # 加入噪音.
-    from mod.data_process.add_noise import add_circlular_noise
-
-    x, y = add_circlular_noise(x, y, radius=0.15)
-
-    return x, y
-
-
-# ---- 离散化代码 -----------------------------------------------------------------------------------
-
-# 单个Cell.
+# 单个cell.
 class Cell(object):
-    """离散化中的Cell, 即单元格
+    """离散化中的单元格对象
     """
 
     def __init__(self, arr: np.ndarray) -> None:
         """初始化
 
         :param arr: 存储有x,y坐标的二维数组, shape = (N, D=2)
-        :param bounds: x和y方向上的边界值, 如[[x_min, x_max], [y_min, y_max]]
         """
         self.arr = arr.copy()
         self.N, self.D = arr.shape
 
-    def get_cell_bounds(self, bounds: List[tuple]):
+        if self.D != 2:
+            raise ValueError('the input dimension is not equal to 2')
+
+    def define_cell_bounds(self, bounds: List[tuple]):
+        """定义cell边界
+
+        :param bounds: list of tuples, 如[(x_min, x_max), (y_min, y_max)]
+        """
         self.bounds = bounds
 
     def cal_area(self):
-        self.area = (self.bounds[0][1] - self.bounds[0][0]) * (self.bounds[1][1] - self.bounds[1][0])
+        self.area = (self.bounds[0][1] - self.bounds[0][0]) \
+            * (self.bounds[1][1] - self.bounds[1][0])
 
-    def _get_marginal_partition_thres(self) -> list:
+    def _get_marginal_partition_thres(self):
         """各维度上按照边际概率(即样本数)相等的方式划分为两个子集
         """
+        # if self.N == 0:
+        #     return None
+        # else:
         part_idx = self.N // 2  # 离散化位置idx
         part_thres = []
         for i in range(self.D):
@@ -84,131 +76,150 @@ class Cell(object):
         """等概率离散化
         """
         # 先在x方向上分为左右两部分.
-        part_arr_l = self.arr[np.where(self.arr[:, 0] < self.part_thres[0])]
-        part_arr_r = self.arr[np.where(self.arr[:, 0] >= self.part_thres[0])]
+        part_arr_l = self.arr[
+            np.where((self.arr[:, 0] < self.part_thres[0]) & (self.arr[:, 0] >= self.bounds[0][0]))
+            ]
+        part_arr_r = self.arr[
+            np.where((self.arr[:, 0] >= self.part_thres[0]) & (self.arr[:, 0] <= self.bounds[0][1]))
+            ]
 
         # 再在y方向上继续切分.
         part_arr_ul = part_arr_l[np.where(
-            part_arr_l[:, 1] >= self.part_thres[1])]
+            (part_arr_l[:, 1] >= self.part_thres[1]) & (part_arr_l[:, 1] <= self.bounds[1][1]))]
         part_arr_ll = part_arr_l[np.where(
-            part_arr_l[:, 1] < self.part_thres[1])]
+            (part_arr_l[:, 1] < self.part_thres[1]) & (part_arr_l[:, 1] >= self.bounds[1][0]))]
 
         part_arr_ur = part_arr_r[np.where(
-            part_arr_r[:, 1] >= self.part_thres[1])]
+            (part_arr_r[:, 1] >= self.part_thres[1]) & (part_arr_r[:, 1] <= self.bounds[1][1]))]
         part_arr_lr = part_arr_r[np.where(
-            part_arr_r[:, 1] < self.part_thres[1])]
+            (part_arr_r[:, 1] < self.part_thres[1]) & (part_arr_r[:, 1] >= self.bounds[1][0]))]
 
-        cell_ul, cell_ur, cell_ll, cell_lr = Cell(part_arr_ul), Cell(part_arr_ur), Cell(part_arr_ll), Cell(part_arr_lr)
+        cell_ul, cell_ur, cell_ll, cell_lr = Cell(part_arr_ul), Cell(part_arr_ur), \
+            Cell(part_arr_ll), Cell(part_arr_lr)
 
         # 确定边界.
         (xl, xu), (yl, yu) = self.bounds
         x_thres, y_thres = self.part_thres
-        cell_ul.get_cell_bounds([(xl, x_thres), (y_thres, yu)])
-        cell_ur.get_cell_bounds([(x_thres, xu), (y_thres, yu)])
-        cell_ll.get_cell_bounds([(xl, x_thres), (yl, y_thres)])
-        cell_lr.get_cell_bounds([(x_thres, xu), (yl, y_thres)])
+        cell_ul.define_cell_bounds([(xl, x_thres), (y_thres, yu)])
+        cell_ur.define_cell_bounds([(x_thres, xu), (y_thres, yu)])
+        cell_ll.define_cell_bounds([(xl, x_thres), (yl, y_thres)])
+        cell_lr.define_cell_bounds([(x_thres, xu), (yl, y_thres)])
         return cell_ul, cell_ur, cell_ll, cell_lr
 
     def cal_P(self):
         self.cal_area()
         return self.N / self.area
 
-    def draw(self, linewidth: float = 0.5):
+    def show(self, linewidth: float = 0.5):
         (xl, xu), (yl, yu) = self.bounds
-        proj_plt.plot([xl, xu], [yl, yl], 'k--', linewidth=linewidth)
-        proj_plt.plot([xu, xu], [yl, yu], 'k--', linewidth=linewidth)
-        proj_plt.plot([xu, xl], [yu, yu], 'k--', linewidth=linewidth)
-        proj_plt.plot([xl, xl], [yu, yl], 'k--', linewidth=linewidth)
+        plt.plot([xl, xu], [yl, yl], '-', c='k', linewidth=linewidth)
+        plt.plot([xu, xu], [yl, yu], '-', c='k', linewidth=linewidth)
+        plt.plot([xu, xl], [yu, yu], '-', c='k', linewidth=linewidth)
+        plt.plot([xl, xl], [yu, yl], '-', c='k', linewidth=linewidth)
 
 
-# 递归分裂.
-def single_step_partition(cell: Cell) -> Tuple[Cell, Cell, Cell, Cell]:
-    cell.get_marginal_partition_thres()
-    return cell.equiprob_partition()
+def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 100, min_leaf_samples: int = 5) -> tuple:
+    leaf_cells = []
 
+    def partition(cell):
 
-def recursively_partition(cell: Cell, eps: float = 1E-2, N_min: int = 20) -> Tuple[Cell, Cell, Cell, Cell]:
-    """递归分裂离散化
+        def _try_partition(cell: Cell):
+            P = cell.cal_P()
 
-    :param arr: 待离散化样本数据
-    :param eps: 分裂前后概率密度相对变化, defaults to 1E-2
-    :param N_min: 叶子节点样本数下界, defaults to 10
-    """
+            # 尝试分裂一下, 并检查分裂效果.
+            cell.get_marginal_partition_thres()
+            cell_ul, cell_ur, cell_ll, cell_lr = cell.equiprob_partition()
 
-    cell_ul, cell_ur, cell_ll, cell_lr = single_step_partition(cell)
+            is_valid_split = True if cell.N >= min_samples_split else False
+            is_P_converged = True
+            is_N_limited = False
 
-    is_P_converged = True
-    is_N_limited = False
+            for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
+                if (np.abs(c.cal_P() - P) / P > p_eps):
+                    is_P_converged = False
+                if c.N < min_leaf_samples:
+                    is_N_limited = True
 
-    P = cell.cal_P()
-    for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
-        if (np.abs(c.cal_P() - P) / P > eps):
-            is_P_converged = False
-        if c.N < N_min:
-            is_N_limited = True
+            if is_valid_split & (not is_P_converged) & (not is_N_limited):
+                return cell_ul, cell_ur, cell_ll, cell_lr
+            else:
+                return None, None, None, None
 
-    if (not is_P_converged) & (not is_N_limited):
-        return recursively_partition(cell_ul), recursively_partition(cell_ur), recursively_partition(cell_ll), recursively_partition(cell_lr)
-    else:
-        return cell_ul, cell_ur, cell_ll, cell_lr
+        part_ul, part_ur, part_ll, part_lr = _try_partition(cell)
 
+        if part_ul is None:
+            leaf_cells.append(cell)
+        else:
+            partition(part_ul)
+            partition(part_ur)
+            partition(part_ll)
+            partition(part_lr)
 
-# 解析结果.
-def parse_partition_result(partition: tuple):
-    leafs = []
+    partition(cell)
 
-    def _parse(p: tuple):
-        for pi in p:
-            if type(pi) == Cell:
-                leafs.append(pi)
-            elif type(pi) == tuple:
-                _parse(pi)
-
-    _parse(partition)  # TODO: 此处解析可能在eps过小时存在Bug
-    return leafs
+    return leaf_cells
 
 
 if __name__ == '__main__':
     from src.settings import *
 
-    # ---- 载入数据 ---------------------------------------------------------------------------------
+    # ---- 测试用函数 -------------------------------------------------------------------------------
 
-    func = 'spike'
+    def minmax_norm(arr: np.ndarray):
+        D = arr.shape[1]
+        scaler = MinMaxScaler()
+        arr_norm = None
+        for i in range(D):
+            a = scaler.fit_transform(arr[:, i: i + 1])
+
+            if arr_norm is None:
+                arr_norm = a
+            else:
+                arr_norm = np.hstack((arr_norm, a))
+        return arr_norm
+
+    def load_data(func: str) -> Tuple[np.ndarray, np.ndarray]:
+        """载入数据
+        """
+        from core.dataset.data_generator import DataGenerator
+
+        N = 10000
+        data_gener = DataGenerator(N=N)
+        x, y, _, _ = data_gener.gen_data(func, normalize=True)
+
+        # 加入噪音.
+        from mod.data_process.add_noise import add_circlular_noise
+
+        x, y = add_circlular_noise(x, y, radius=0.15)
+
+        return x, y
+
+    # ---- 生成数据 ---------------------------------------------------------------------------------
+
+    func = 'parabola'
     x, y = load_data(func)
+    arr = np.vstack((x, y)).T
 
-    # ---- 预处理 -----------------------------------------------------------------------------------
+    # ---- 测试代码 ---------------------------------------------------------------------------------
 
-    # 数据归一化.
-    scaler = MinMaxScaler()
-    x = scaler.fit_transform(x.reshape(-1, 1))
-    y = scaler.fit_transform(y.reshape(-1, 1))
+    cell = Cell(arr)
+    cell.define_cell_bounds([(-1.0, 1.0), (-0.2, 1.2)])
 
     proj_plt.figure(figsize=[6, 6])
-    proj_plt.scatter(x, y, s=3)
+    proj_plt.scatter(cell.arr[:, 0], cell.arr[:, 1], s=3)
 
-    # ---- 单个Cell测试 -----------------------------------------------------------------------------
+    leaf_cells = recursive_partition(cell)
 
-    arr = np.hstack((x, y))
-    cell = Cell(arr)
-    cell.get_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
-
-    # cell.get_marginal_partition_thres()
-    # cell_ul, cell_ur, cell_ll, cell_lr = cell.equiprob_partition()
-
-    # cell_ul, cell_ur, cell_ll, cell_lr = single_step_partition()(cell)
-
-    partition_ul, partition_ur, partition_ll, partition_lr = recursively_partition(
-        cell)
-
-    leaf_cells = []
-    for partition in [partition_ul, partition_ur, partition_ll, partition_lr]:
-        leaf_cells += parse_partition_result(partition)
-
+    empty_c_lst = []
     for c in leaf_cells:
         c.get_marginal_partition_thres()
-        c.draw()
-    
-    proj_plt.title('{}'.format(func), fontsize = 18, fontweight='bold')
+        if c.part_thres is None:
+            empty_c_lst.append(c)
+        else:
+            c.show()
+
+    proj_plt.title('{}'.format(func), fontsize=18, fontweight='bold')
     proj_plt.xlabel('$\it{x}$')
     proj_plt.ylabel('$\it{y}$')
-    proj_plt.savefig(os.path.join(PROJ_DIR, 'img/partitions/{}.png'.format(func)), dpi = 450)
+    proj_plt.savefig(os.path.join(
+        PROJ_DIR, 'img/partitions/{}.png'.format(func)), dpi=450)
