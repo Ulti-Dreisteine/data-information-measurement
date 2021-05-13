@@ -24,6 +24,22 @@ BASE_DIR = os.path.abspath(os.path.join(
 sys.path.append(BASE_DIR)
 
 
+# ---- 预处理 ----------------------------------------------------------------------------------------
+
+def minmax_norm(arr: np.ndarray):
+    D = arr.shape[1]
+    scaler = MinMaxScaler()
+    arr_norm = None
+    for i in range(D):
+        a = scaler.fit_transform(arr[:, i: i + 1])
+
+        if arr_norm is None:
+            arr_norm = a
+        else:
+            arr_norm = np.hstack((arr_norm, a))
+    return arr_norm
+
+
 # ---- 离散化 ---------------------------------------------------------------------------------------
 
 # 单个cell.
@@ -77,11 +93,13 @@ class Cell(object):
         """
         # 先在x方向上分为左右两部分.
         part_arr_l = self.arr[
-            np.where((self.arr[:, 0] < self.part_thres[0]) & (self.arr[:, 0] >= self.bounds[0][0]))
-            ]
+            np.where((self.arr[:, 0] < self.part_thres[0]) &
+                     (self.arr[:, 0] >= self.bounds[0][0]))
+        ]
         part_arr_r = self.arr[
-            np.where((self.arr[:, 0] >= self.part_thres[0]) & (self.arr[:, 0] <= self.bounds[0][1]))
-            ]
+            np.where((self.arr[:, 0] >= self.part_thres[0])
+                     & (self.arr[:, 0] <= self.bounds[0][1]))
+        ]
 
         # 再在y方向上继续切分.
         part_arr_ul = part_arr_l[np.where(
@@ -165,19 +183,6 @@ if __name__ == '__main__':
 
     # ---- 测试用函数 -------------------------------------------------------------------------------
 
-    def minmax_norm(arr: np.ndarray):
-        D = arr.shape[1]
-        scaler = MinMaxScaler()
-        arr_norm = None
-        for i in range(D):
-            a = scaler.fit_transform(arr[:, i: i + 1])
-
-            if arr_norm is None:
-                arr_norm = a
-            else:
-                arr_norm = np.hstack((arr_norm, a))
-        return arr_norm
-
     def load_data(func: str) -> Tuple[np.ndarray, np.ndarray]:
         """载入数据
         """
@@ -190,20 +195,21 @@ if __name__ == '__main__':
         # 加入噪音.
         from mod.data_process.add_noise import add_circlular_noise
 
-        x, y = add_circlular_noise(x, y, radius=0.15)
+        x, y = add_circlular_noise(x, y, radius=0.0)
 
         return x, y
 
     # ---- 生成数据 ---------------------------------------------------------------------------------
 
-    func = 'parabola'
+    func = 'cubic'
     x, y = load_data(func)
     arr = np.vstack((x, y)).T
+    arr = minmax_norm(arr)
 
     # ---- 测试代码 ---------------------------------------------------------------------------------
 
     cell = Cell(arr)
-    cell.define_cell_bounds([(-1.0, 1.0), (-0.2, 1.2)])
+    cell.define_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
 
     proj_plt.figure(figsize=[6, 6])
     proj_plt.scatter(cell.arr[:, 0], cell.arr[:, 1], s=3)

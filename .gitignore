@@ -9,4 +9,4 @@ pkg/
 trash/
 *.pyc
 
-img/partitions.
+img/partitions/
