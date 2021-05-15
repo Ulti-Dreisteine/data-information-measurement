@@ -11,6 +11,11 @@ Created on 2021/02/11 15:51
 @Describe: 基于KNN的经典信息熵估计器
 """
 
+__doc__ = """
+    参考文献: D. Lombardi, S. Pant: A Non-Parametric K-Nearest Neighbor Entropy Estimator, \
+        Physical Review E., 2016.
+"""
+
 from sklearn.neighbors import NearestNeighbors
 from scipy.special import gamma, psi
 import numpy as np

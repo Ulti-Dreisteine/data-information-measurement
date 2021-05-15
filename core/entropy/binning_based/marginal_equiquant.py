@@ -106,11 +106,11 @@ if __name__ == '__main__':
     from core.dataset.data_generator import FUNC_NAMES
 
     proj_plt.figure(figsize=[6, 6])
-    for func in FUNC_NAMES:
-        radius_lst = np.arange(0.01, 2.0, 0.05)
+    for func in FUNC_NAMES[:1]:
+        radius_lst = np.arange(0.1, 10.0, 0.1)
         mie_lst = []
-        params = {'p_eps': 1e-3, 'min_samples_split': 100,
-                  'min_leaf_samples': 5}
+        params = {'p_eps': 1e-3, 'min_samples_split': 50,
+                  'min_leaf_samples': 0}
         for radius in radius_lst:
             x, y = load_data(func, radius)
             # mie = cal_mie(x, y, **params)

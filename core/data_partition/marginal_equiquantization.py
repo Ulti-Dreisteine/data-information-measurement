@@ -15,7 +15,6 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from typing import List, Tuple
 import numpy as np
-import copy
 import sys
 import os
 
@@ -126,7 +125,10 @@ class Cell(object):
 
     def cal_P(self):
         self.cal_area()
-        return self.N / self.area
+        if self.area == 0.0:
+            return 0.0
+        else:
+            return self.N / self.area
 
     def show(self, linewidth: float = 0.5):
         (xl, xu), (yl, yu) = self.bounds
@@ -136,7 +138,9 @@ class Cell(object):
         plt.plot([xl, xl], [yu, yl], '-', c='k', linewidth=linewidth)
 
 
-def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 100, min_leaf_samples: int = 5) -> tuple:
+def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 1, min_leaf_samples: int = 0) -> tuple:
+    # TODO: 关于这里的参数应该再讨论一下, p_eps可以保留, 但是cell的最小分裂样本min_samples_split可以=1，分裂后
+    # min_leaf_samples可以为0.
     leaf_cells = []
 
     def partition(cell):
@@ -188,14 +192,14 @@ if __name__ == '__main__':
         """
         from core.dataset.data_generator import DataGenerator
 
-        N = 10000
+        N = 1000
         data_gener = DataGenerator(N=N)
         x, y, _, _ = data_gener.gen_data(func, normalize=True)
 
         # 加入噪音.
         from mod.data_process.add_noise import add_circlular_noise
 
-        x, y = add_circlular_noise(x, y, radius=0.0)
+        x, y = add_circlular_noise(x, y, radius=0.2)
 
         return x, y
 
