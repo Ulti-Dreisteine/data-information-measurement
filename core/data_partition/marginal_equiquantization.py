@@ -138,7 +138,7 @@ class Cell(object):
         plt.plot([xl, xl], [yu, yl], '-', c='k', linewidth=linewidth)
 
 
-def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 1, min_leaf_samples: int = 0) -> tuple:
+def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 100, min_leaf_samples: int = 0) -> tuple:
     # TODO: 关于这里的参数应该再讨论一下, p_eps可以保留, 但是cell的最小分裂样本min_samples_split可以=1，分裂后
     # min_leaf_samples可以为0.
     leaf_cells = []
