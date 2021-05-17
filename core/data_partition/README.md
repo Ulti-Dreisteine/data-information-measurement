@@ -1,9 +1,11 @@
-#! https://zhuanlan.zhihu.com/p/373072950
+#! https://zhuanlan.zhihu.com/p/373077728
 ### 基于Equiquantization的数据离散化
 
 #### 参考文献
 
-本文提供了一种基于数据信息量计算其对目标预测能力的方式: Georges A. Darbellay: Predictability: An Information-Theoretic Perspective, Signal Analysis and Prediction, 1998.
+本文提供了一种基于数据信息量计算其对目标预测能力的方式: 
+
+Georges A. Darbellay: Predictability: An Information-Theoretic Perspective, Signal Analysis and Prediction, 1998.
 
 ---
 
@@ -218,9 +220,7 @@ $$
 
 这一步可以通过严格统计检验来实现, 但为了算法方便, 我采用了一个$\varepsilon$作为收敛判据. 最后的分箱效果如下:
 
-<img width = '' height ='' src ="../../img/partitions/cubic.png"/>
-
-
+![Image](https://pic4.zhimg.com/80/v2-cbf96d64a3220c5acc67fe4ef7399e18.png)
 
 **2. 信息熵估计**
 
