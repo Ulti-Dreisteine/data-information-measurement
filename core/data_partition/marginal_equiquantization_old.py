@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2021/05/22 21:11:55
+Created on 2021/05/13 14:21:04
 
 @File -> marginal_equiquantization.py
 
@@ -13,15 +13,17 @@ Created on 2021/05/22 21:11:55
 
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-from typing import Tuple, List
+from typing import List, Tuple
 import numpy as np
 import sys
 import os
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '../../../'))
+BASE_DIR = os.path.abspath(os.path.join(
+    os.path.abspath(__file__), '../../../'))
 sys.path.append(BASE_DIR)
 
-# 预处理.
+
+# ---- 预处理 ----------------------------------------------------------------------------------------
 
 def minmax_norm(arr: np.ndarray):
     D = arr.shape[1]
@@ -36,11 +38,12 @@ def minmax_norm(arr: np.ndarray):
             arr_norm = np.hstack((arr_norm, a))
     return arr_norm
 
-# 数据样本离散化.
+
+# ---- 离散化 ---------------------------------------------------------------------------------------
 
 # 单个cell.
 class Cell(object):
-    """边际等概率离散化中的单元格对象
+    """离散化中的单元格对象
     """
 
     def __init__(self, arr: np.ndarray) -> None:
@@ -54,31 +57,23 @@ class Cell(object):
         if self.D != 2:
             raise ValueError('the input dimension is not equal to 2')
 
-    def _cal_area(self):
-        area = 1.0
-        for i in range(self.D):
-            area *= self.bounds[i][1] - self.bounds[i][0]
-        self.area = area
+    def define_cell_bounds(self, bounds: List[tuple]):
+        """定义cell边界
 
-    def def_cell_bounds(self, bounds: List[tuple]):
-        """用户定义cell的边界
-
-        :param bounds: 边界值list, 如[(x_min, x_max), (y_min, y_max)]
+        :param bounds: list of tuples, 如[(x_min, x_max), (y_min, y_max)]
         """
         self.bounds = bounds
-        self._cal_area()
 
-    def cal_proba_dens(self) -> float:
-        """计算以样本数计的概率密度
-        """
-        if self.area == 0.0:
-            return 0.0
-        else:
-            return self.N / self.area
+    def cal_area(self):
+        self.area = (self.bounds[0][1] - self.bounds[0][0]) \
+            * (self.bounds[1][1] - self.bounds[1][0])
 
-    def _get_marginal_partition_thres(self) -> List[float]:
-        """获取各维度上等边际概率(即等边际样本数)分箱的阈值
+    def _get_marginal_partition_thres(self):
+        """各维度上按照边际概率(即样本数)相等的方式划分为两个子集
         """
+        # if self.N == 0:
+        #     return None
+        # else:
         part_idx = self.N // 2  # 离散化位置idx
         part_thres = []
         for i in range(self.D):
@@ -88,10 +83,12 @@ class Cell(object):
         return part_thres
 
     def get_marginal_partition_thres(self):
+        """获得各边际离散化阈值
+        """
         self.part_thres = self._get_marginal_partition_thres()
 
-    def exec_partition(self):
-        """执行边际等概率离散化
+    def equiprob_partition(self) -> tuple:
+        """等概率离散化
         """
         # 先在x方向上分为左右两部分.
         part_arr_l = self.arr[
@@ -116,15 +113,22 @@ class Cell(object):
 
         cell_ul, cell_ur, cell_ll, cell_lr = Cell(part_arr_ul), Cell(part_arr_ur), \
             Cell(part_arr_ll), Cell(part_arr_lr)
-        
+
         # 确定边界.
         (xl, xu), (yl, yu) = self.bounds
         x_thres, y_thres = self.part_thres
-        cell_ul.def_cell_bounds([(xl, x_thres), (y_thres, yu)])
-        cell_ur.def_cell_bounds([(x_thres, xu), (y_thres, yu)])
-        cell_ll.def_cell_bounds([(xl, x_thres), (yl, y_thres)])
-        cell_lr.def_cell_bounds([(x_thres, xu), (yl, y_thres)])
+        cell_ul.define_cell_bounds([(xl, x_thres), (y_thres, yu)])
+        cell_ur.define_cell_bounds([(x_thres, xu), (y_thres, yu)])
+        cell_ll.define_cell_bounds([(xl, x_thres), (yl, y_thres)])
+        cell_lr.define_cell_bounds([(x_thres, xu), (yl, y_thres)])
         return cell_ul, cell_ur, cell_ll, cell_lr
+
+    def cal_P(self):
+        self.cal_area()
+        if self.area == 0.0:
+            return 0.0
+        else:
+            return self.N / self.area
 
     def show(self, linewidth: float = 0.5):
         (xl, xu), (yl, yu) = self.bounds
@@ -134,62 +138,61 @@ class Cell(object):
         plt.plot([xl, xl], [yu, yl], '-', c='k', linewidth=linewidth)
 
 
-# 递归离散化.
-
-def _try_partition(cell: Cell, p_eps: float):
-    proba_dens = cell.cal_proba_dens()
-
-    # 尝试分裂一下, 并检查分裂效果.
-    cell.get_marginal_partition_thres()
-    cell_ul, cell_ur, cell_ll, cell_lr = cell.exec_partition()
-
-    is_proba_dens_converged = True
-
-    for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
-        if (np.abs(c.cal_proba_dens() - proba_dens) / proba_dens > p_eps):
-            is_proba_dens_converged = False
-            break
-
-    if is_proba_dens_converged:
-        return cell_ul, cell_ur, cell_ll, cell_lr
-    else:
-        return None, None, None, None
-
-
-def recursively_partition(cell: Cell, p_eps: float = 1e-5) -> tuple:
-    """对一个cell进行递归离散化
-
-    :param cell: 初始cell
-    :param p_eps: 子cell概率与父cell相对偏差阈值, 如果所有都小于该值则终止离散化, defaults to 1e-3
-    """
+def recursive_partition(cell: Cell, p_eps: float = 1e-3, min_samples_split: int = 1, min_leaf_samples: int = 0) -> tuple:
+    # TODO: 关于这里的参数应该再讨论一下, p_eps可以保留, 但是cell的最小分裂样本min_samples_split可以=1，分裂后
+    # min_leaf_samples可以为0.
     leaf_cells = []
 
-    def _partition(cell):
-        part_ul, part_ur, part_ll, part_lr = _try_partition(cell, p_eps)
+    def partition(cell):
+
+        def _try_partition(cell: Cell):
+            P = cell.cal_P()
+
+            # 尝试分裂一下, 并检查分裂效果.
+            cell.get_marginal_partition_thres()
+            cell_ul, cell_ur, cell_ll, cell_lr = cell.equiprob_partition()
+
+            is_valid_split = True if cell.N >= min_samples_split else False
+            is_P_converged = True
+            is_N_limited = False
+
+            for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
+                if (np.abs(c.cal_P() - P) / P > p_eps):
+                    is_P_converged = False
+                if c.N < min_leaf_samples:
+                    is_N_limited = True
+
+            if is_valid_split & (not is_P_converged) & (not is_N_limited):
+                return cell_ul, cell_ur, cell_ll, cell_lr
+            else:
+                return None, None, None, None
+
+        part_ul, part_ur, part_ll, part_lr = _try_partition(cell)
 
         if part_ul is None:
             leaf_cells.append(cell)
         else:
-            _partition(part_ul)
-            _partition(part_ur)
-            _partition(part_ll)
-            _partition(part_lr)
-    
-    _partition(cell)
+            partition(part_ul)
+            partition(part_ur)
+            partition(part_ll)
+            partition(part_lr)
+
+    partition(cell)
+
     return leaf_cells
 
 
 if __name__ == '__main__':
     from src.settings import *
-    
-    # ---- 测试用函数 --------------------------------------------------------------------------------
+
+    # ---- 测试用函数 -------------------------------------------------------------------------------
 
     def load_data(func: str) -> Tuple[np.ndarray, np.ndarray]:
         """载入数据
         """
         from core.dataset.data_generator import DataGenerator
 
-        N = 2000
+        N = 1000
         data_gener = DataGenerator(N=N)
         x, y, _, _ = data_gener.gen_data(func, normalize=True)
 
@@ -199,7 +202,7 @@ if __name__ == '__main__':
         x, y = add_circlular_noise(x, y, radius=0.2)
 
         return x, y
-    
+
     # ---- 生成数据 ---------------------------------------------------------------------------------
 
     func = 'cubic'
@@ -207,15 +210,15 @@ if __name__ == '__main__':
     arr = np.vstack((x, y)).T
     arr = minmax_norm(arr)
 
-    # ---- 测试代码 ----------------------------------------------------------------------------------
+    # ---- 测试代码 ---------------------------------------------------------------------------------
 
     cell = Cell(arr)
-    cell.def_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
+    cell.define_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
 
     proj_plt.figure(figsize=[6, 6])
     proj_plt.scatter(cell.arr[:, 0], cell.arr[:, 1], s=3)
 
-    leaf_cells = recursively_partition(cell)
+    leaf_cells = recursive_partition(cell)
 
     empty_c_lst = []
     for c in leaf_cells:
@@ -228,8 +231,5 @@ if __name__ == '__main__':
     proj_plt.title('{}'.format(func), fontsize=18, fontweight='bold')
     proj_plt.xlabel('$\it{x}$')
     proj_plt.ylabel('$\it{y}$')
-    # proj_plt.savefig(os.path.join(PROJ_DIR, 'img/partitions/{}.png'.format(func)), dpi=450)
-    
-    
-    
-
+    proj_plt.savefig(os.path.join(
+        PROJ_DIR, 'img/partitions/{}.png'.format(func)), dpi=450)
