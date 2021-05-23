@@ -26,7 +26,7 @@ BASE_DIR = os.path.abspath(os.path.join(
     os.path.abspath(__file__), '../../../../'))
 sys.path.append(BASE_DIR)
 
-from core.data_partition.marginal_equiquantization import Cell, minmax_norm, recursive_partition
+from core.data_partition.marginal_equiquantization import Cell, minmax_norm, recursively_partition
 
 
 class MutualInfoEntropy(object):
@@ -39,8 +39,11 @@ class MutualInfoEntropy(object):
 
     def _equiquantize(self, **kwargs):
         cell = Cell(self.arr)
-        cell.define_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
-        leaf_cells = recursive_partition(cell, **kwargs)
+        cell.def_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
+        leaf_cells = recursively_partition(cell, **kwargs)
+
+        leaf_cells = [c for c in leaf_cells if c.N > 0]
+
         return leaf_cells
 
     def equiquantize(self, **kwargs):
@@ -109,8 +112,7 @@ if __name__ == '__main__':
     for func in FUNC_NAMES[:1]:
         radius_lst = np.arange(0.1, 10.0, 0.1)
         mie_lst = []
-        params = {'p_eps': 1e-3, 'min_samples_split': 50,
-                  'min_leaf_samples': 0}
+        params = {'p_eps': 1e-3, 'min_samples_split': 100}
         for radius in radius_lst:
             x, y = load_data(func, radius)
             # mie = cal_mie(x, y, **params)

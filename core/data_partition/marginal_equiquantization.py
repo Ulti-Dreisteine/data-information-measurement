@@ -18,11 +18,14 @@ import numpy as np
 import sys
 import os
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '../../../'))
+sys.setrecursionlimit(3000)
+
+BASE_DIR = os.path.abspath(os.path.join(
+    os.path.abspath(__file__), '../../../'))
 sys.path.append(BASE_DIR)
 
-# 预处理.
 
+# 预处理.
 def minmax_norm(arr: np.ndarray):
     D = arr.shape[1]
     scaler = MinMaxScaler()
@@ -36,9 +39,8 @@ def minmax_norm(arr: np.ndarray):
             arr_norm = np.hstack((arr_norm, a))
     return arr_norm
 
-# 数据样本离散化.
 
-# 单个cell.
+# 数据样本离散化.
 class Cell(object):
     """边际等概率离散化中的单元格对象
     """
@@ -79,19 +81,27 @@ class Cell(object):
     def _get_marginal_partition_thres(self) -> List[float]:
         """获取各维度上等边际概率(即等边际样本数)分箱的阈值
         """
-        part_idx = self.N // 2  # 离散化位置idx
-        part_thres = []
-        for i in range(self.D):
-            arr_srt = self.arr[np.argsort(self.arr[:, i]), :]  # 对应维度值升序排列
-            marginal_part_value = arr_srt[part_idx, i]  # >=该值的样本被划分入新的cell
-            part_thres.append(marginal_part_value)
+        if self.N == 1:
+            part_thres = list(self.arr.flatten())
+        else:
+            part_idx = self.N // 2  # 离散化位置idx
+            part_thres = []
+            for i in range(self.D):
+                arr_srt = self.arr[np.argsort(self.arr[:, i]), :]  # 对应维度值升序排列
+                if self.N % 2 == 0:  # 以均值划分
+                    marginal_part_value = (
+                        arr_srt[part_idx - 1, i] + arr_srt[part_idx, i]) / 2
+                else:
+                    marginal_part_value = (
+                        arr_srt[part_idx - 1, i] + arr_srt[part_idx + 1, i]) / 2
+                part_thres.append(marginal_part_value)
         return part_thres
 
     def get_marginal_partition_thres(self):
         self.part_thres = self._get_marginal_partition_thres()
 
     def exec_partition(self):
-        """执行边际等概率离散化
+        """执行边际等概率离散化, 执行这一步的要求为self.N > 0
         """
         # 先在x方向上分为左右两部分.
         part_arr_l = self.arr[
@@ -116,7 +126,7 @@ class Cell(object):
 
         cell_ul, cell_ur, cell_ll, cell_lr = Cell(part_arr_ul), Cell(part_arr_ur), \
             Cell(part_arr_ll), Cell(part_arr_lr)
-        
+
         # 确定边界.
         (xl, xu), (yl, yu) = self.bounds
         x_thres, y_thres = self.part_thres
@@ -135,28 +145,30 @@ class Cell(object):
 
 
 # 递归离散化.
-
-def _try_partition(cell: Cell, p_eps: float):
-    proba_dens = cell.cal_proba_dens()
-
-    # 尝试分裂一下, 并检查分裂效果.
-    cell.get_marginal_partition_thres()
-    cell_ul, cell_ur, cell_ll, cell_lr = cell.exec_partition()
-
-    is_proba_dens_converged = True
-
-    for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
-        if (np.abs(c.cal_proba_dens() - proba_dens) / proba_dens > p_eps):
-            is_proba_dens_converged = False
-            break
-
-    if is_proba_dens_converged:
-        return cell_ul, cell_ur, cell_ll, cell_lr
-    else:
+def _try_partition(cell: Cell, min_samples_split: int, p_eps: float):
+    if cell.N < min_samples_split:
         return None, None, None, None
+    else:
+        proba_dens = cell.cal_proba_dens()
+
+        # 尝试分裂一下, 并检查分裂效果.
+        cell.get_marginal_partition_thres()
+        cell_ul, cell_ur, cell_ll, cell_lr = cell.exec_partition()
+
+        is_proba_dens_converged = True
+
+        for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
+            if (np.abs(c.cal_proba_dens() - proba_dens) / proba_dens > p_eps):
+                is_proba_dens_converged = False
+                break
+
+        if not is_proba_dens_converged:
+            return cell_ul, cell_ur, cell_ll, cell_lr
+        else:
+            return None, None, None, None
 
 
-def recursively_partition(cell: Cell, p_eps: float = 1e-5) -> tuple:
+def recursively_partition(cell: Cell, min_samples_split: int = 30, p_eps: float = 1e-3) -> tuple:
     """对一个cell进行递归离散化
 
     :param cell: 初始cell
@@ -165,7 +177,8 @@ def recursively_partition(cell: Cell, p_eps: float = 1e-5) -> tuple:
     leaf_cells = []
 
     def _partition(cell):
-        part_ul, part_ur, part_ll, part_lr = _try_partition(cell, p_eps)
+        part_ul, part_ur, part_ll, part_lr = _try_partition(
+            cell, min_samples_split, p_eps)
 
         if part_ul is None:
             leaf_cells.append(cell)
@@ -174,14 +187,14 @@ def recursively_partition(cell: Cell, p_eps: float = 1e-5) -> tuple:
             _partition(part_ur)
             _partition(part_ll)
             _partition(part_lr)
-    
+
     _partition(cell)
     return leaf_cells
 
 
 if __name__ == '__main__':
     from src.settings import *
-    
+
     # ---- 测试用函数 --------------------------------------------------------------------------------
 
     def load_data(func: str) -> Tuple[np.ndarray, np.ndarray]:
@@ -189,7 +202,7 @@ if __name__ == '__main__':
         """
         from core.dataset.data_generator import DataGenerator
 
-        N = 2000
+        N = 5000
         data_gener = DataGenerator(N=N)
         x, y, _, _ = data_gener.gen_data(func, normalize=True)
 
@@ -199,7 +212,7 @@ if __name__ == '__main__':
         x, y = add_circlular_noise(x, y, radius=0.2)
 
         return x, y
-    
+
     # ---- 生成数据 ---------------------------------------------------------------------------------
 
     func = 'cubic'
@@ -213,23 +226,28 @@ if __name__ == '__main__':
     cell.def_cell_bounds([(0.0, 1.0), (0.0, 1.0)])
 
     proj_plt.figure(figsize=[6, 6])
-    proj_plt.scatter(cell.arr[:, 0], cell.arr[:, 1], s=3)
+    proj_plt.scatter(cell.arr[:, 0], cell.arr[:, 1], s=2)
 
+    # 测试1.
+    # cell.get_marginal_partition_thres()
+    # cell_ul, cell_ur, cell_ll, cell_lr = cell.exec_partition()
+
+    # for c in [cell_ul, cell_ur, cell_ll, cell_lr]:
+    #     c.show()
+
+    # 测试2.
     leaf_cells = recursively_partition(cell)
 
     empty_c_lst = []
     for c in leaf_cells:
-        c.get_marginal_partition_thres()
-        if c.part_thres is None:
-            empty_c_lst.append(c)
-        else:
-            c.show()
+        if c.N > 0:
+            c.get_marginal_partition_thres()
+            if c.part_thres is None:
+                empty_c_lst.append(c)
+            else:
+                c.show()
 
     proj_plt.title('{}'.format(func), fontsize=18, fontweight='bold')
     proj_plt.xlabel('$\it{x}$')
     proj_plt.ylabel('$\it{y}$')
     # proj_plt.savefig(os.path.join(PROJ_DIR, 'img/partitions/{}.png'.format(func)), dpi=450)
-    
-    
-    
-
