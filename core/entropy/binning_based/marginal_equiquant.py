@@ -93,7 +93,7 @@ if __name__ == '__main__':
         """
         from core.dataset.data_generator import DataGenerator
 
-        N = 10000
+        N = 5000
         data_gener = DataGenerator(N=N)
         x, y, _, _ = data_gener.gen_data(func, normalize=True)
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     for func in FUNC_NAMES[:1]:
         radius_lst = np.arange(0.1, 10.0, 0.1)
         mie_lst = []
-        params = {'p_eps': 1e-3, 'min_samples_split': 100}
+        params = {'p_eps': 1e-3, 'min_samples_split': 1000}
         for radius in radius_lst:
             x, y = load_data(func, radius)
             # mie = cal_mie(x, y, **params)
