@@ -203,6 +203,7 @@ def cal_mutual_info(x, y, x_type, y_type, **kwargs):
         return cal_entropy(x, x_type=x_type) + cal_entropy(y, x_type=y_type) - cal_entropy(xy, 'd')
 
     # TODO: 混合类型的还算得不准, 互信息甚至小于0.
+    # 参考这部分代码: 
     elif (x_type == 'c') & (y_type == 'd'):  # I(x;y) = H(x) - H(x|y)
         return abs(cal_entropy(x, x_type=x_type) - cal_cond_entropy(x, y, x_type=x_type, y_type=y_type))  # TODO: 为何要取绝对值?
     elif (x_type == 'd') & (y_type == 'c'):  # I(x;y) = H(y) - H(y|x)
