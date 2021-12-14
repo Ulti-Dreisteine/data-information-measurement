@@ -34,7 +34,7 @@ if __name__ == '__main__':
     x1, y1, _, _ = data_generator.gen_data(N, func)
     x1_type, y1_type = 'd', 'd'
     
-    func = 'parabola'
+    func = 'cos_high_freq'
     x2, y2, _, _ = data_generator.gen_data(N, func)
     x2_type, y2_type = 'c', 'c'
     
@@ -65,11 +65,15 @@ if __name__ == '__main__':
     print('I(X1;Y1|X1)')
     print(CondMutualInfo(x1, y1, x1, x1_type, y1_type, x1_type)())
     
-    print('I(X2;Y2|X2)')
-    print(CondMutualInfo(x2, y2, x2, x2_type, y2_type, x2_type)(k=5))  # TODO: 连续变量条件熵计算结果有系统误差
+    print('I(X2;Y2|X2) by mutual info')
+    print(CondMutualInfo(x2, y2, x2, x2_type, y2_type, x2_type)(method='mutual_info', k=5))  # TODO: 连续变量条件熵计算结果有系统误差
     
-    print('I(X1;Y2|X2)')
-    print(CondMutualInfo(x1, y2, x2, x1_type, y2_type, x2_type)(k=5))
+    print('I(X2;Y2|X2) by Kraskov')
+    print(CondMutualInfo(x2, y2, x2, x2_type, y2_type, x2_type)(method='kraskov', k=5))
+    
+    print('I(X1;Y2|X2) by Mutual_Info')
+    print(CondMutualInfo(x1, y2, x2, x1_type, y2_type, x2_type)(method='mutual_info', k=5))
+    
     
     
     

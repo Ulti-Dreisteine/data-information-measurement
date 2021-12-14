@@ -131,6 +131,7 @@ class CondMutualInfo(object):
         self.x_type, self.y_type, self.z_type = x_type, y_type, z_type
         
     def __call__(self, method: str = 'mutual_info', **kwargs):
+        # TODO: 根据数据类型自行匹配最优算法.
         x, y, z = self.x, self.y, self.z
         
         # 利用互信息减法.
@@ -145,6 +146,35 @@ class CondMutualInfo(object):
         elif method == 'binning':
             ...  # TODO: 完成这部分
             raise ValueError
+        elif method == 'kraskov':
+            assert self.x_type == 'c'
+            assert self.y_type == 'c'
+            assert self.z_type == 'c'
+            
+            k = deter_k(x) if 'k' not in kwargs.keys() is None else kwargs['k']
+            assert k <= len(x) - 1
+
+            xz = np.c_[x, z]
+            yz = np.c_[y, z]
+            xyz = np.c_[x, y, z]
+            
+            tree = build_tree(xyz)
+            nn_distc = query_neighbors_dist(tree, xyz, k)  # 获得了各样本第k近邻的距离
+            
+            tree = build_tree(xz)
+            nn_distc_xz = nn_distc - 1e-15
+            Nxz = tree.query_radius(xz, nn_distc_xz, count_only=True)
+
+            tree = build_tree(yz)
+            nn_distc_yz = nn_distc - 1e-15
+            Nyz = tree.query_radius(yz, nn_distc_yz, count_only=True)
+            
+            tree = build_tree(z)
+            nn_distc_z = nn_distc - 1e-15
+            Nz = tree.query_radius(z, nn_distc_z, count_only=True)
+
+            return np.mean(digamma(Nz)) + digamma(k) - np.mean(digamma(Nxz)) \
+                - np.mean(digamma(Nyz))
         else:
             raise ValueError
         
