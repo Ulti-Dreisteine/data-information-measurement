@@ -20,7 +20,7 @@ sys.path.append(BASE_DIR)
 print(sys.path[-1])
 
 from src.setting import plt
-from core.mi.entropy import Entropy
+from core.mi.mutual_info import MutualInfo, CondMutualInfo
 from core.dataset.data_generator import DataGenerator
 
 if __name__ == '__main__':
@@ -48,24 +48,28 @@ if __name__ == '__main__':
     print('x2, shape = {}, d_type = {}'.format(x2.shape, x2_type))
     print('y2, shape = {}, d_type = {}'.format(y2.shape, y2_type))
     
-    print('\n单变量信息熵')
-    print('H(x1)')
-    print(Entropy(x1, d_type=x1_type)())
+    print('\n互信息')
+    print('I(X1;Y1)')
+    print(MutualInfo(x1, y1, x1_type, y1_type)())
     
-    print('H(y1)')
-    print(Entropy(y1, d_type=y1_type)())
+    print('I(X2;Y2)')
+    print(MutualInfo(x2, y2, x2_type, y2_type)())
     
-    print('H(x2) by Kraskov')
-    print(Entropy(x2, d_type=x2_type)(method='Kraskov', k=3))
+    print('I(X1;Y2)')
+    print(MutualInfo(x1, y2, x1_type, y2_type)(k=5))
     
-    print('H(x2) by Lombardi')
-    print(Entropy(x2, d_type=x2_type)(method='Lombardi', k=5))
+    print('I(X2;Y1)')
+    print(MutualInfo(x2, y1, x2_type, y1_type)(k=5))
     
-    print('H(y2) by Kraskov')
-    print(Entropy(y2, d_type=y2_type)(method='Kraskov', k=3))
+    print('\n条件互信息')
+    print('I(X1;Y1|X1)')
+    print(CondMutualInfo(x1, y1, x1, x1_type, y1_type, x1_type)())
     
-    print('H(y2) by Lombardi')
-    print(Entropy(y2, d_type=y2_type)(method='Lombardi', k=5))
+    print('I(X2;Y2|X2)')
+    print(CondMutualInfo(x2, y2, x2, x2_type, y2_type, x2_type)(k=5))  # TODO: 连续变量条件熵计算结果有系统误差
+    
+    print('I(X1;Y2|X2)')
+    print(CondMutualInfo(x1, y2, x2, x1_type, y2_type, x2_type)(k=5))
     
     
     
