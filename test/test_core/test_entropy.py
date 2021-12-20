@@ -19,9 +19,8 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '../' * 3))
 sys.path.append(BASE_DIR)
 print(sys.path[-1])
 
-from src.setting import plt
-from core.mi.entropy import Entropy
-from core.dataset.data_generator import DataGenerator
+from mod.dataset.data_generator import DataGenerator
+from core.entropy.entropy import Entropy
 
 if __name__ == '__main__':
     
@@ -56,16 +55,10 @@ if __name__ == '__main__':
     print(Entropy(y1, d_type=y1_type)())
     
     print('H(x2) by Kraskov')
-    print(Entropy(x2, d_type=x2_type)(method='Kraskov', k=3))
-    
-    print('H(x2) by Lombardi')
-    print(Entropy(x2, d_type=x2_type)(method='Lombardi', k=5))
+    print(Entropy(x2, d_type=x2_type)(method='knn', k=5))
     
     print('H(y2) by Kraskov')
-    print(Entropy(y2, d_type=y2_type)(method='Kraskov', k=3))
-    
-    print('H(y2) by Lombardi')
-    print(Entropy(y2, d_type=y2_type)(method='Lombardi', k=5))
+    print(Entropy(y2, d_type=y2_type)(method='knn', k=5))
     
     
     

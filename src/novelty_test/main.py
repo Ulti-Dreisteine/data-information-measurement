@@ -25,10 +25,12 @@ BASE_DIR = os.path.abspath(os.path.join(
     os.path.abspath(__file__), '../../../'))
 sys.path.append(BASE_DIR)
 
-from src.settings import *
+from src.setting import *
 from src.novelty_test import FUNCS2TEST
-from core.dataset import *
-from core.dataset.data_generator import DataGenerator
+from mod.dataset import *
+from mod.dataset.data_generator import DataGenerator
+
+
 from core.entropy.binning_based.mic import MutualInfoCoeff
 from core.entropy.binning_based.rmic import RefinedMutualInfoCoeff
 from core.entropy.knn_based.classical import KLEstimator
@@ -137,6 +139,5 @@ if __name__ == '__main__':
     # 保存结果.
     novelty_test.to_csv(
         os.path.join(
-            PROJ_DIR, 'file/novelty_test/{}_novelty_test.csv'.format(method)),
-        index=False
-    )
+            BASE_DIR, 'file/novelty_test/{}_novelty_test.csv'.format(method)),
+            index=False)

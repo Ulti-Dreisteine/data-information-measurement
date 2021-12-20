@@ -18,8 +18,8 @@ BASE_DIR = os.path.abspath(os.path.join(
     os.path.abspath(__file__), '../../../'))
 sys.path.append(BASE_DIR)
 
-from src.settings import *
-from core.dataset.data_generator import FUNC_NAMES, DataGenerator
+from src.setting import plt
+from mod.dataset.data_generator import FUNC_NAMES, DataGenerator
 
 
 if __name__ == '__main__':
@@ -31,6 +31,6 @@ if __name__ == '__main__':
     print('func = "{}"'.format(func))
 
     data_gener = DataGenerator(N)
-    x, y, _, _ = data_gener.gen_data(func)
+    x, y, _, _ = data_gener.gen_data(N, func)
 
-    proj_plt.scatter(x, y)
+    plt.scatter(x, y)
